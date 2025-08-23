@@ -1,0 +1,12 @@
+{
+  "name": "loved-server",
+  "version": "1.0.0",
+  "description": "Backend server for the loved application",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only index.ts"
+  },
+  "author": "Jules",
+  "license": "ISC"
+}
