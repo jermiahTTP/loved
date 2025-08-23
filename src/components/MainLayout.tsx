@@ -6,18 +6,43 @@ import { Message } from './ChatMessage';
 const MainLayout = () => {
   const [messages, setMessages] = useState<Message[]>([]);
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = async (text: string) => {
     const userMessage: Message = { text, sender: 'user' };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        text: "I'm a simulated AI response!",
+    const historyForApi = newMessages.map((msg) => ({
+      role: msg.sender === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.text }],
+    }));
+
+    try {
+      const response = await fetch('http://localhost:3001/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: text,
+          history: historyForApi.slice(0, -1), // Send history without the current user message
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response from server');
+      }
+
+      const data = await response.json();
+      const aiMessage: Message = { text: data.response, sender: 'ai' };
+      setMessages((prevMessages) => [...prevMessages, aiMessage]);
+    } catch (error) {
+      console.error(error);
+      const errorMessage: Message = {
+        text: 'Sorry, I encountered an error. Please try again.',
         sender: 'ai',
       };
-      setMessages((prevMessages) => [...prevMessages, aiMessage]);
-    }, 1000);
+      setMessages((prevMessages) => [...prevMessages, errorMessage]);
+    }
   };
 
   return (

@@ -12,7 +12,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Environment variables
-.env
+server/.env
 .env*.local
 
 # IDEs and editors
