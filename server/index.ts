@@ -39,7 +39,7 @@ function App() {
 
 export default App
       `;
-      const filePath = path.join(process.cwd(), 'live-preview-app', 'src', 'App.tsx');
+      const filePath = path.join(__dirname, '..', 'live-preview-app', 'src', 'App.tsx');
       fs.writeFileSync(filePath, newAppTsxContent.trim());
       return res.json({ response: "Okay, I have updated the title in the live preview." });
     }
