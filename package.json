@@ -2,12 +2,13 @@
   "name": "loved",
   "private": true,
   "workspaces": [
-    "server"
+    "server",
+    "live-preview-app"
   ],
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server --workspace=server\"",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server --workspace=server\" \"npm run dev:live-preview --workspace=live-preview-app\"",
     "dev:client": "vite",
     "build": "vite build",
     "lint": "eslint .",

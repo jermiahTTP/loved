@@ -63,7 +63,7 @@ const MainLayout = () => {
         </div>
         <div className="flex-grow">
           <iframe
-            src="about:blank"
+            src="http://localhost:5174"
             title="Live Preview"
             className="w-full h-full border-0"
           />
