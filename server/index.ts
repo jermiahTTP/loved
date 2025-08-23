@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -21,6 +23,25 @@ app.post('/api/chat', async (req, res) => {
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (message.toLowerCase() === 'change the app title') {
+      const newAppTsxContent = `
+import React from 'react';
+
+function App() {
+  return (
+    <div>
+      <h1>Hello, World! I've been updated!</h1>
+    </div>
+  )
+}
+
+export default App
+      `;
+      const filePath = path.join(process.cwd(), 'live-preview-app', 'src', 'App.tsx');
+      fs.writeFileSync(filePath, newAppTsxContent.trim());
+      return res.json({ response: "Okay, I have updated the title in the live preview." });
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
