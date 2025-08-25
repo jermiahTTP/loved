@@ -79,8 +79,10 @@ app.post('/api/chat', async (req, res) => {
         }
       }
 
-      result = await chat.sendMessage(toolResults);
-      response = await result.response;
+      if (toolResults.length > 0) {
+        result = await chat.sendMessage(toolResults);
+        response = await result.response;
+      }
     }
 
     const text = response.text();
