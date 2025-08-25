@@ -11,6 +11,11 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
+// Load prompts and tools
+const agentPrompt = fs.readFileSync(path.join(__dirname, '..', 'Agent Prompt.txt'), 'utf-8');
+const prompt = fs.readFileSync(path.join(__dirname, '..', 'Prompt.txt'), 'utf-8');
+const agentTools = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'Agent Tools.json'), 'utf-8'));
+
 const app = express();
 const port = 3001;
 
@@ -29,37 +34,53 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    if (message.toLowerCase() === 'change the app title') {
-      const newAppTsxContent = `
-import React from 'react';
-
-function App() {
-  return (
-    <div>
-      <h1>Hello, World! I've been updated!</h1>
-    </div>
-  )
-}
-
-export default App
-      `;
-      const filePath = path.join(__dirname, '..', 'live-preview-app', 'src', 'App.tsx');
-      fs.writeFileSync(filePath, newAppTsxContent.trim());
-      return res.json({ response: "Okay, I have updated the title in the live preview." });
-    }
-
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-pro',
+      systemInstruction: `${agentPrompt}\n\n${prompt}`,
+      tools: [{ functionDeclarations: agentTools }],
+    });
 
     const chat = model.startChat({
       history: history || [],
     });
 
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    const text = response.text();
+    let result = await chat.sendMessage(message);
+    let response = await result.response;
 
+    while (response.functionCalls) {
+      const functionCalls = response.functionCalls;
+      const toolResults = [];
+
+      for (const call of functionCalls) {
+        if (call.name === 'lov-write') {
+          const { file_path, content } = call.args;
+
+          const livePreviewDir = path.resolve(__dirname, '..', 'live-preview-app');
+          const filePath = path.resolve(livePreviewDir, file_path);
+
+          // Security check
+          if (!filePath.startsWith(livePreviewDir)) {
+            throw new Error('File path is outside the allowed directory.');
+          }
+
+          fs.writeFileSync(filePath, content);
+          toolResults.push({
+            functionResponse: {
+              name: 'lov-write',
+              response: { success: true, message: `File ${file_path} written successfully.` },
+            },
+          });
+        }
+      }
+
+      result = await chat.sendMessage(JSON.stringify(toolResults));
+      response = await result.response;
+    }
+
+    const text = response.text();
     res.json({ response: text });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to get response from Gemini API' });
