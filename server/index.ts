@@ -79,7 +79,7 @@ app.post('/api/chat', async (req, res) => {
         }
       }
 
-      result = await chat.sendMessage(JSON.stringify(toolResults));
+      result = await chat.sendMessage(toolResults);
       response = await result.response;
     }
 
