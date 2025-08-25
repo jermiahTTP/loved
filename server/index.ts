@@ -48,8 +48,13 @@ app.post('/api/chat', async (req, res) => {
     let result = await chat.sendMessage(message);
     let response = await result.response;
 
-    while (response.functionCalls) {
-      const functionCalls = response.functionCalls;
+    let functionCalls = response.functionCalls;
+
+    if (functionCalls && !Array.isArray(functionCalls)) {
+        functionCalls = [functionCalls];
+    }
+
+    if (functionCalls) {
       const toolResults = [];
 
       for (const call of functionCalls) {
