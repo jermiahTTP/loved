@@ -28,7 +28,9 @@ app.get('/', (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
+    console.log('--- NEW CHAT REQUEST ---');
     const { message, history } = req.body;
+    console.log('Received message:', message);
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
@@ -45,21 +47,30 @@ app.post('/api/chat', async (req, res) => {
       history: history || [],
     });
 
+    console.log('Sending message to Gemini...');
     let result = await chat.sendMessage(message);
     let response = await result.response;
+    console.log('--- Gemini Response 1 ---');
+    console.log(JSON.stringify(response, null, 2));
+
 
     let functionCalls = response.functionCalls;
 
     if (functionCalls && !Array.isArray(functionCalls)) {
+        console.log('Wrapping single function call in array');
         functionCalls = [functionCalls];
     }
 
     if (functionCalls) {
+      console.log('Detected function calls:', functionCalls.length);
       const toolResults = [];
 
       for (const call of functionCalls) {
+        console.log(`Executing tool: ${call.name}`);
         if (call.name === 'lov-write') {
           const { file_path, content } = call.args;
+          console.log(`  > file_path: ${file_path}`);
+          console.log(`  > content: "${content.substring(0, 50)}..."`);
 
           const livePreviewDir = path.resolve(__dirname, '..', 'live-preview-app');
           const filePath = path.resolve(livePreviewDir, file_path);
@@ -79,16 +90,23 @@ app.post('/api/chat', async (req, res) => {
         }
       }
 
+      console.log('Tool results:', JSON.stringify(toolResults, null, 2));
       if (toolResults.length > 0) {
+        console.log('Sending tool results back to Gemini...');
         result = await chat.sendMessage(toolResults);
         response = await result.response;
+        console.log('--- Gemini Response 2 ---');
+        console.log(JSON.stringify(response, null, 2));
       }
     }
 
     const text = response.text();
+    console.log('Final text response:', text);
+    console.log('--- END CHAT REQUEST ---');
     res.json({ response: text });
 
   } catch (error) {
+    console.error('!!! CHAT API ERROR !!!');
     console.error(error);
     res.status(500).json({ error: 'Failed to get response from Gemini API' });
   }
