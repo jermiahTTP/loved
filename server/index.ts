@@ -11,10 +11,18 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-// Load prompts and tools
-const agentPrompt = fs.readFileSync(path.join(__dirname, '..', 'Agent Prompt.txt'), 'utf-8');
-const prompt = fs.readFileSync(path.join(__dirname, '..', 'Prompt.txt'), 'utf-8');
+// Load tools
 const agentTools = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'Agent Tools.json'), 'utf-8'));
+
+const systemPrompt = `
+You are an expert AI coding assistant named "Lovable". Your purpose is to help users create and modify web applications.
+
+When a user asks you to make a change to the code, you must use the provided tools to write the code changes to the appropriate files.
+
+For example, if a user asks you to "change the title to 'Hello'", you should call the \`lov-write\` tool with the correct file path and the new content for the file.
+
+For general conversation, you should respond as a friendly and helpful assistant.
+`;
 
 const app = express();
 const port = 3001;
@@ -39,7 +47,7 @@ app.post('/api/chat', async (req, res) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-pro',
-      systemInstruction: `${agentPrompt}\n\n${prompt}`,
+      systemInstruction: systemPrompt,
       tools: [{ functionDeclarations: agentTools }],
     });
 
