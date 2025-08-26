@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fg from 'fast-glob';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,7 +13,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 // Load tools
-const agentTools = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'Agent Tools.json'), 'utf-8'));
+const agentTools = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), '..', 'Agent Tools.json'), 'utf-8'));
 
 const systemPrompt = `
 You are an expert AI coding assistant named "Lovable". Your purpose is to help users create and modify web applications.
@@ -30,7 +31,7 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.send('Hello from the loved server!');
 });
 
@@ -62,12 +63,7 @@ app.post('/api/chat', async (req, res) => {
     console.log(JSON.stringify(response, null, 2));
 
 
-    let functionCalls = response.functionCalls;
-
-    if (functionCalls && !Array.isArray(functionCalls)) {
-        console.log('Wrapping single function call in array');
-        functionCalls = [functionCalls];
-    }
+    const functionCalls = response.functionCalls();
 
     if (functionCalls) {
       console.log('Detected function calls:', functionCalls.length);
@@ -76,11 +72,11 @@ app.post('/api/chat', async (req, res) => {
       for (const call of functionCalls) {
         console.log(`Executing tool: ${call.name}`);
         if (call.name === 'lov-write') {
-          const { file_path, content } = call.args;
+          const { file_path, content } = call.args as { file_path: string; content: string };
           console.log(`  > file_path: ${file_path}`);
           console.log(`  > content: "${content.substring(0, 50)}..."`);
 
-          const livePreviewDir = path.resolve(__dirname, '..', 'live-preview-app');
+          const livePreviewDir = path.resolve(process.cwd(), '..', 'live-preview-app');
           const filePath = path.resolve(livePreviewDir, file_path);
 
           // Security check
@@ -93,6 +89,56 @@ app.post('/api/chat', async (req, res) => {
             functionResponse: {
               name: 'lov-write',
               response: { success: true, message: `File ${file_path} written successfully.` },
+            },
+          });
+        } else if (call.name === 'lov-search-files') {
+          const { query, include_pattern, exclude_pattern, case_sensitive } = call.args as { query: string; include_pattern: string; exclude_pattern?: string; case_sensitive?: boolean };
+          console.log(`  > query: ${query}`);
+          console.log(`  > include_pattern: ${include_pattern}`);
+          if (exclude_pattern) console.log(`  > exclude_pattern: ${exclude_pattern}`);
+          console.log(`  > case_sensitive: ${case_sensitive}`);
+
+          const livePreviewDir = path.resolve(process.cwd(), '..', 'live-preview-app');
+
+          const entries = await fg(include_pattern, {
+            cwd: livePreviewDir,
+            ignore: exclude_pattern ? [exclude_pattern] : [],
+            onlyFiles: true,
+            caseSensitiveMatch: case_sensitive,
+          });
+
+          const searchResults = [];
+          const regex = new RegExp(query, case_sensitive ? 'g' : 'gi');
+
+          for (const entry of entries) {
+            const filePath = path.resolve(livePreviewDir, entry);
+            // Security check
+            if (!filePath.startsWith(livePreviewDir)) {
+              continue; // Skip files outside the allowed directory
+            }
+
+            const content = fs.readFileSync(filePath, 'utf-8');
+            const lines = content.split('\n');
+            const matches = [];
+
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].match(regex)) {
+                matches.push({ line: i + 1, content: lines[i] });
+              }
+            }
+
+            if (matches.length > 0) {
+              searchResults.push({
+                filePath: entry,
+                matches: matches,
+              });
+            }
+          }
+
+          toolResults.push({
+            functionResponse: {
+              name: 'lov-search-files',
+              response: { success: true, results: searchResults },
             },
           });
         }
