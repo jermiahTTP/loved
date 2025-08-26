@@ -7,6 +7,8 @@ export default {
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
+		"./live-preview-app/index.html",
+		"./live-preview-app/src/**/*.{js,ts,jsx,tsx}",
 	],
 	prefix: "",
 	theme: {
